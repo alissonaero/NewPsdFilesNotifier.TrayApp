@@ -3,17 +3,17 @@
 ///TODO: Criar um drop down para selecionar a frequência de verificação dos arquivos na pasta monitorada.
 ///TODO: Transformar a aplicação para que se possa monitorar mais de uma pasta e mais de um tipo de arquivo.
 
-using PsPrintNotifier.TrayApp.Common.CrossThreadingHelpers;
-using PsPrintNotifier.TrayApp.Forms;
-using PsPrintNotifier.TrayApp.Models;
-using PsPrintNotifier.TrayApp.Services;
+using NewPsdFilesNotifier.TrayApp.Common;
+using NewPsdFilesNotifier.TrayApp.Models;
+using NewPsdFilesNotifier.TrayApp.Services;
+using NewPsdFilesNotifier.TrayApp.Forms;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ST = System.Timers;
 using SW = System.Windows;
 
-namespace PsPrintNotifier.TrayApp
+namespace NewPsdFilesNotifier.TrayApp
 {
 	public class StartUp : IDisposable
 	{
@@ -29,18 +29,20 @@ namespace PsPrintNotifier.TrayApp
 		ToolStripMenuItem printNowStripe;
 		bool userNotified = false;
 		AppSettings settings;
+		readonly WhatsAppNotifier msgSender;
+		DateTime lastNotificationTime = DateTime.MinValue;
 
 		public StartUp()
 		{
-
 			settings = LoadAndEnsureSettings();
+
+			msgSender = new WhatsAppNotifier(settings);
 
 			SetAppConfigs();
 		}
 
 		private void SetAppConfigs()
 		{
-
 
 			if (settings == null) return;
 
@@ -83,7 +85,7 @@ namespace PsPrintNotifier.TrayApp
 				BalloonTipText = "Rodando em background."
 			};
 
-			using (var stream = new MemoryStream(Properties.Resources.PsdIcon))
+			using (var stream = new MemoryStream(NewPsdFilesNotifier.TrayApp.Properties.Resources.PsdIcon))
 			{
 				notifyIcon.Icon = new Icon(stream);
 			}
@@ -91,7 +93,7 @@ namespace PsPrintNotifier.TrayApp
 			// Menu de contexto
 			var contextMenu = new ContextMenuStrip();
 
-			var header = new ToolStripMenuItem("Print Manager v1.0.3") { Enabled = false };
+			var header = new ToolStripMenuItem("Print Manager v1.0.3.3") { Enabled = false };
 			contextMenu.Items.Add(header);
 
 			contextMenu.Items.Add(new ToolStripSeparator());
@@ -107,7 +109,7 @@ namespace PsPrintNotifier.TrayApp
 
 			notifyIcon.ContextMenuStrip = contextMenu;
 
-			clientStatusTimer = new ST.Timer(1500000); // a cada 25 minutos
+			clientStatusTimer = new ST.Timer(600_000); // a cada 10 minutos
 			clientStatusTimer.Elapsed += (s, e) => HasFiles();
 			clientStatusTimer.AutoReset = true;
 
@@ -117,7 +119,7 @@ namespace PsPrintNotifier.TrayApp
 
 				ShowTrayNotification("Monitor de Impressão PSD", "Serviço ON LINE", 4000);
 
-				SendWhatsupMessage($"Monitor de Impressão PSD iniciado com sucesso às {DateTime.Now.ToShortTimeString()}.");
+				msgSender.SendWhatsupMessage($"Monitor de Impressão PSD iniciado com sucesso às {DateTime.Now.ToShortTimeString()}.");
 
 				isReadyToUse = true;
 			}
@@ -131,7 +133,6 @@ namespace PsPrintNotifier.TrayApp
 			{
 				clientStatusTimer.Start();
 			}
-
 		}
 
 		private AppSettings LoadAndEnsureSettings()
@@ -164,56 +165,32 @@ namespace PsPrintNotifier.TrayApp
 
 		private void OpenConfigForm()
 		{
-			FormInvoker.ShowForm(new ConfigurationForm());
+			FormInvoker.ShowForm(new ConfigurationForm(), true);
+			
 			LoadAndEnsureSettings();
 		}
 
 		private void OnFileManaged(object sender, FileSystemEventArgs e)
 		{
-			ShowTrayNotification("Novo(s) PSD detectado(s)", "🖨️ Novo(s) arquivo(s) encontrado(s) para impressão.", 4000);
+			// Só notifica a cada 10 minutos para evitar "spam", caso o usuário vá adicionando arquivos a conta gotas.
+			if (lastNotificationTime.Date != DateTime.MinValue && (lastNotificationTime.AddMinutes(10) > DateTime.Now))  return; 
 
-			if (userNotified)
+			if (!clientStatusTimer.Enabled) 
 			{
-				userNotified = false; // Reseta a notificação que envia o nomes dos arquivos. Se entra aqui, já foi colocados arquivos anteriomente e o usuário já foi notificado.
+				ShowTrayNotification("Novo(s) PSD detectado(s)", "🖨️ Novo(s) arquivo(s) encontrado(s) para impressão.", 4000);
+				msgSender.SendWhatsupMessage("Novos PSD detectados");
+			}
+			else
+			{
+				ShowTrayNotification("Arquivos disponíveis", "🖨️ Há arquivos na pasta prontos para impressão.", 4000);
 			}
 
-			SendWhatsupMessage("Novos PSD detectados");
+			//Se o timer já rodou o encontrou arquivos chamando HasFiles() e notificou o usuário, precisamos reiniciar o mecanismo			 
+			if (userNotified) userNotified = false;
 
-			if (!clientStatusTimer.Enabled)
-			{
-				clientStatusTimer.Start();
-			}
-		}
+			if (!clientStatusTimer.Enabled) clientStatusTimer.Start();
 
-		private async void SendWhatsupMessage(string message, int delay = 0)
-		{
-			if (string.IsNullOrEmpty(message))
-			{
-				throw new ArgumentNullException(nameof(message), "Não é possível enviar mensagem sem conteúdo");
-			}
-
-			if (string.IsNullOrEmpty(settings.WhatsAppContact))
-			{
-				MessageBoxHelper.ShowWarning ("Contato do WhatsApp não configurado. Por favor, configure nas configurações.", "Configuração Necessária");
-				return;
-			}
-
-			if (string.IsNullOrEmpty(settings.WhatsAppApiKey))
-			{
-				MessageBoxHelper.ShowWarning("Chave da API do WhatsApp não configurada. Por favor, configure nas configurações.", "Configuração Necessária");
-				return;
-			}
-
-			await NotificationService.WhatsAppNotifier.SendAsync(
-			"55" + settings.WhatsAppContact,
-			message,
-			settings.WhatsAppApiKey);
-
-			if (delay > 0)
-			{
-				await Task.Delay(delay); // Aguardar o tempo necessário para evitar sobrecarga de requisições	
-			}
-
+			lastNotificationTime = DateTime.Now;
 		}
 
 		private bool HasFiles()
@@ -228,7 +205,7 @@ namespace PsPrintNotifier.TrayApp
 				{
 					ShowTrayNotification("Carregando...", "Pasta a ser monitorada não está disponível", 4000);
 
-					SendWhatsupMessage("Pasta a ser monitorada não está disponível...");
+					msgSender.SendWhatsupMessage("Pasta a ser monitorada não está disponível...");
 
 					//Iniciamos o timer para verificar novamente em 25 minutos
 					if (!clientStatusTimer.Enabled)
@@ -251,23 +228,22 @@ namespace PsPrintNotifier.TrayApp
 
 			if (has)
 			{
-
-				StringBuilder message = new StringBuilder("Novos arquivos PSD colocados na pasta para impressão:\n\n");
-
 				if (!userNotified)
 				{
+					StringBuilder message = new("Os sequintes arquivos estão na pasta para impressão:\n\n");
+
 					foreach (var file in files)
 					{
 						message.AppendLine(file);
 					}
-					userNotified = true;
+
+					userNotified = true; // Marca que o usuário já foi notificado sobre os arquivos na pasta
+					msgSender.SendWhatsupMessage(message.ToString(), 2000);
 				}
 
 				printNowStripe.Text = $"Imprimir agora ({files.Length} arquivos)";
 
 				ShowTrayNotification("Arquivos PSD", $"{files.Length} arquivo(s) encontrado(s) para impressão.", 4000);
-
-				SendWhatsupMessage(message.ToString(), 2000);
 
 				lastCheckedTime = DateTime.Now;
 			}
@@ -280,7 +256,6 @@ namespace PsPrintNotifier.TrayApp
 			return has;
 		}
 
-		// Timers rodando por longos periodos tendem a causar problemas de desempenho ou travamentos.	
 		private void MonitorsSwitchOn()
 		{
 			if (watcher != null)
@@ -411,8 +386,6 @@ namespace PsPrintNotifier.TrayApp
 				);
 			}
 		}
-
-
 
 		void ShowTrayNotification(string title, string message, int timeout)
 		{

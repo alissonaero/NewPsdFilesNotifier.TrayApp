@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace PsPrintNotifier.TrayApp.Common
+namespace NewPsdFilesNotifier.TrayApp.Common
 {
 	internal static class Helper
 	{

@@ -1,8 +1,8 @@
-﻿using PsPrintNotifier.TrayApp.Common.CrossThreadingHelpers;
+﻿using NewPsdFilesNotifier.TrayApp.Common;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace PsPrintNotifier.TrayApp
+namespace NewPsdFilesNotifier.TrayApp
 {
 	public partial class App : System.Windows.Application
 	{
@@ -12,22 +12,24 @@ namespace PsPrintNotifier.TrayApp
 
 		private void Application_Startup(object sender, StartupEventArgs e)
 		{
-			const string mutexName = "PsPrintNotifier.TrayApp.Singleton";
-			bool createdNew;
+			UiDispatcher = Dispatcher.CurrentDispatcher;
 
-			_appMutex = new Mutex(true, mutexName, out createdNew);
+			ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+			const string mutexName = "NewPsdFilesNotifier.TrayApp";
+
+			_appMutex = new Mutex(true, mutexName, out bool createdNew);
 
 			if (!createdNew)
 			{
-				MessageBoxHelper.ShowWarning("O aplicativo já está em execução", "Aviso");
+				MessageBoxHelper.ShowWarning("O NewPsdFilesNotifier já está em execução", "NewPsdFilesNotifier.TrayApp");
+
 				Shutdown();
 
 				return;
 			}
 
-			UiDispatcher = Dispatcher.CurrentDispatcher;
-			ShutdownMode = ShutdownMode.OnExplicitShutdown;
-			var startup = new StartUp();
+			_ = new StartUp();
 		}
 
 

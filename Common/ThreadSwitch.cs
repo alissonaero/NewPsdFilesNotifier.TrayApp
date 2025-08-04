@@ -1,34 +1,36 @@
 ﻿#nullable enable
 
+using NewPsdFilesNotifier.TrayApp.Common;
+using NewPsdFilesNotifier.TrayApp;
 using System.Windows;
 using SW = System.Windows;
 
-namespace PsPrintNotifier.TrayApp.Common.CrossThreadingHelpers
+namespace NewPsdFilesNotifier.TrayApp.Common
 {
 	internal static class MessageBoxHelper
 	{
-		private static void ShowMessage(string message, string title, SW.MessageBoxImage image)
+		private static void ShowMessage(string message, string title, MessageBoxImage image)
 		{
 			if (App.UiDispatcher == null)
 				throw new InvalidOperationException("UI Dispatcher is not set.");
 
 			if (!App.UiDispatcher.CheckAccess())
 			{
-				App.UiDispatcher.Invoke(() => SW.MessageBox.Show(message, title, SW.MessageBoxButton.OK, image));
+				App.UiDispatcher.Invoke(() => SW.MessageBox.Show(message, title, MessageBoxButton.OK, image));
 				return;
 			}
 
-			SW.MessageBox.Show(message, title, SW.MessageBoxButton.OK, image);
+			SW.MessageBox.Show(message, title, MessageBoxButton.OK, image);
 		}
 
 		public static void ShowError(string message, string title = "Error")
-			=> ShowMessage(message, title, SW.MessageBoxImage.Error);
+			=> ShowMessage(message, title, MessageBoxImage.Error);
 
 		public static void ShowInfo(string message, string title = "Info")
-			=> ShowMessage(message, title, SW.MessageBoxImage.Information);
+			=> ShowMessage(message, title, MessageBoxImage.Information);
 
 		public static void ShowWarning(string message, string title = "Warning")
-			=> ShowMessage(message, title, SW.MessageBoxImage.Warning);
+			=> ShowMessage(message, title, MessageBoxImage.Warning);
 	}
 
 	internal static class FormInvoker

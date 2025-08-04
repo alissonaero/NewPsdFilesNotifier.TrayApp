@@ -1,12 +1,12 @@
 ﻿#nullable disable
 
+using NewPsdFilesNotifier.TrayApp.Common;
 using Newtonsoft.Json;
-using PsPrintNotifier.TrayApp.Common.CrossThreadingHelpers;
 using System.IO;
 using System.Web;
 
 
-namespace PsPrintNotifier.TrayApp.Models
+namespace NewPsdFilesNotifier.TrayApp.Models
 {
 	public class AppSettings
 	{
@@ -23,7 +23,7 @@ namespace PsPrintNotifier.TrayApp.Models
 	{
 		private static readonly string SettingsFilePath = Path.Combine(
 			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-			"PsPrintNotifier",
+			"NewPsdFilesNotifier",
 			"settings.json");
 
 		private static readonly JsonSerializerSettings SerializerSettings = new JsonSerializerSettings

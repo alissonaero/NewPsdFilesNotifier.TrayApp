@@ -1,8 +1,7 @@
 ﻿#nullable disable
 
-using PsPrintNotifier.TrayApp.Common;
-using PsPrintNotifier.TrayApp.Common.CrossThreadingHelpers;
-using PsPrintNotifier.TrayApp.Models;
+using NewPsdFilesNotifier.TrayApp.Common;
+using NewPsdFilesNotifier.TrayApp.Models;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -11,7 +10,7 @@ using System.Windows.Input;
 using SW = System.Windows;
 
 
-namespace PsPrintNotifier.TrayApp.Forms
+namespace NewPsdFilesNotifier.TrayApp.Forms
 {
  
 	public partial class ConfigurationForm : Window
@@ -34,7 +33,7 @@ namespace PsPrintNotifier.TrayApp.Forms
 
 			string numero = _currentSettings.WhatsAppContact ?? string.Empty;
 
-			if (numero[2..3].Equals("9"))
+			if (!string.IsNullOrWhiteSpace(numero) && numero[2..3].Equals("9"))
 			{
 				numero = numero.Insert(2, "9");
 			}
